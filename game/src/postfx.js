@@ -66,13 +66,16 @@ const InkGradeShader = {
 export function createPostFX(renderer, scene, camera) {
   const w = window.innerWidth;
   const h = window.innerHeight;
+  const dpr = renderer.getPixelRatio();
 
-  const rt = new THREE.WebGLRenderTarget(w, h, {
+  const rt = new THREE.WebGLRenderTarget(Math.floor(w * dpr), Math.floor(h * dpr), {
     type: THREE.HalfFloatType,
-    samples: 4,
+    samples: 0, // Safer across mobile WebGL2 drivers & avoids MSAA HalfFloat resize glitches
   });
 
   const composer = new EffectComposer(renderer, rt);
+  composer.setPixelRatio(dpr);
+  composer.setSize(w, h);
   composer.addPass(new RenderPass(scene, camera));
 
   const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.42, 0.55, 0.92);
@@ -86,6 +89,8 @@ export function createPostFX(renderer, scene, camera) {
     bloom,
     gradePass,
     resize(nw, nh) {
+      const curDpr = renderer.getPixelRatio();
+      composer.setPixelRatio(curDpr);
       composer.setSize(nw, nh);
       bloom.setSize(nw, nh);
     },

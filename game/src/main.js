@@ -260,14 +260,17 @@ window.addEventListener('wheel', (e) => {
   state.zoom = Math.max(0.92, Math.min(1.32, state.zoom + Math.sign(e.deltaY) * 0.05));
 }, { passive: true });
 
-window.addEventListener('resize', () => {
+function handleResize() {
   const w = window.innerWidth, h = window.innerHeight;
   camera.fov = h > w ? 52 : 42;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobileLike ? 1.5 : 2));
   renderer.setSize(w, h);
   postfx.resize(w, h);
-});
+}
+window.addEventListener('resize', handleResize);
+window.addEventListener('orientationchange', () => setTimeout(handleResize, 120));
 
 const updateDebug = debugPanel(() => {
   const pl = combat.pl;

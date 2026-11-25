@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>勇闖屍骨山 — 尋藥之旅</title>
   <script type="importmap">
     {
@@ -15,14 +15,16 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      width: 100%; height: 100%; overflow: hidden;
+      width: 100%; height: 100%; height: 100dvh; overflow: hidden;
       background: #091016;
       font-family: "DFKai-SB", "BiauKai", "Kaiti TC", "Noto Serif TC", "PMingLiU", Georgia, serif;
       color: #e6dfd1;
-      user-select: none;
+      user-select: none; -webkit-user-select: none;
+      touch-action: none; overscroll-behavior: none;
+      -webkit-touch-callout: none;
     }
-    #canvas-wrap { position: fixed; inset: 0; z-index: 1; }
-    canvas { display: block; width: 100%; height: 100%; }
+    #canvas-wrap { position: fixed; inset: 0; z-index: 1; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
     #loading-mask {
       position: fixed; inset: 0; z-index: 30;
@@ -280,7 +282,7 @@
       border: 1px solid rgba(155, 170, 165, 0.3);
     }
     .codex-tab.active { background: rgba(146, 36, 28, 0.85); color: #fff4df; border-color: #e6b89c; }
-    .codex-body { padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .codex-body { padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
     .codex-card {
       padding: 11px 14px; background: rgba(10, 17, 22, 0.72);
       border-left: 3px solid #76b89e; border-top: 1px solid rgba(196,174,132,0.16);

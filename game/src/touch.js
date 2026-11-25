@@ -5,6 +5,25 @@ export function createTouchControls({ forceTouch = false, isPlaying = () => fals
   const isTouchCapable = forceTouch || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
   if (isTouchCapable) document.body.classList.add('touch-mode');
 
+  // Strictly block iOS Safari / Android Chrome pinch-to-zoom & double-tap-to-zoom during multi-touch gameplay!
+  for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+  }
+  let lastTapEnd = 0;
+  document.addEventListener('touchstart', (e) => {
+    markTouchActive();
+    if (e.touches.length > 1 && !(e.target && e.target.closest && e.target.closest('button, .ch-skill'))) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+  document.addEventListener('touchend', (e) => {
+    // Allow scrolling inside Codex modal, block double-tap zoom everywhere else
+    if (e.target && e.target.closest && e.target.closest('.codex-body, .vic-lore')) return;
+    const now = performance.now();
+    if (now - lastTapEnd < 320) e.preventDefault();
+    lastTapEnd = now;
+  }, { passive: false });
+
   // Floating Joystick DOM (appears wherever left thumb touches on left half of screen)
   const joyBase = document.createElement('div');
   joyBase.id = 'touch-joy-base';
