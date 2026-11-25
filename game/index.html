@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>勇闖屍骨山 — 尋藥之旅</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./lib/three.module.js",
+        "three/addons/": "./lib/"
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #091016;
+      font-family: "DFKai-SB", "BiauKai", "Kaiti TC", "Noto Serif TC", "PMingLiU", Georgia, serif;
+      color: #e6dfd1;
+      user-select: none;
+    }
+    #canvas-wrap { position: fixed; inset: 0; z-index: 1; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    #loading-mask {
+      position: fixed; inset: 0; z-index: 30;
+      display: flex; align-items: center; justify-content: center;
+      background: #091016;
+      color: #b8c2be; letter-spacing: 0.35em; font-size: 16px;
+      transition: opacity 0.6s ease;
+    }
+    #loading-mask.hidden { opacity: 0; pointer-events: none; }
+
+    #title-screen {
+      position: fixed; inset: 0; z-index: 20;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: space-between;
+      padding: 7vh 4vw 6vh;
+      background: radial-gradient(ellipse at 50% 45%, rgba(9,16,22,0.08) 0%, rgba(7,12,17,0.62) 100%);
+      transition: opacity 0.8s ease;
+      pointer-events: auto;
+    }
+    #title-screen.hidden { opacity: 0; pointer-events: none; }
+
+    .title-header { display: flex; flex-direction: column; align-items: center; margin-top: 3vh; }
+    .title-row { display: flex; align-items: center; gap: 18px; }
+    .game-title {
+      font-size: clamp(42px, 6.2vw, 76px); font-weight: 400;
+      letter-spacing: 0.28em; text-indent: 0.28em; color: #efe8d8;
+      text-shadow: 0 2px 18px rgba(0, 0, 0, 0.85), 0 0 36px rgba(155, 200, 210, 0.22);
+    }
+    .seal-stamp {
+      writing-mode: vertical-rl; font-size: 15px; letter-spacing: 0.22em;
+      padding: 7px 5px; color: #f4e6d8;
+      background: rgba(156, 36, 28, 0.88);
+      border: 1px solid rgba(235, 180, 165, 0.55);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.55); border-radius: 2px;
+    }
+    .title-epigraph {
+      margin-top: 16px; font-size: clamp(13px, 1.3vw, 17px);
+      letter-spacing: 0.26em; color: rgba(218, 224, 218, 0.78);
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
+    }
+    .title-actions { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    #btn-start {
+      cursor: pointer;
+      background: linear-gradient(180deg, rgba(22, 34, 40, 0.72), rgba(12, 20, 25, 0.88));
+      color: #efe5cf; border: 1px solid rgba(212, 184, 132, 0.58);
+      padding: 13px 46px; font-family: inherit; font-size: 19px;
+      letter-spacing: 0.38em; text-indent: 0.38em;
+      transition: border-color 0.25s, background 0.25s, transform 0.2s, box-shadow 0.25s;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    #btn-start:hover {
+      border-color: #e6c687;
+      background: linear-gradient(180deg, rgba(36, 52, 58, 0.84), rgba(18, 28, 34, 0.94));
+      box-shadow: 0 0 22px rgba(218, 178, 108, 0.28); transform: translateY(-1px);
+    }
+    .title-subnote { font-size: 12px; letter-spacing: 0.2em; color: rgba(190, 202, 198, 0.56); }
+
+    /* Explore HUD */
+    #stage1-hud {
+      position: fixed; left: 20px; bottom: 18px; z-index: 10;
+      font-size: 13px; letter-spacing: 0.14em;
+      color: rgba(225, 224, 212, 0.82);
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+      pointer-events: none; opacity: 0; transition: opacity 0.6s ease;
+    }
+    #stage1-hud.visible { opacity: 1; }
+    #stage1-hud .zone-name { font-size: 17px; color: #e8d2a6; margin-bottom: 4px; }
+
+    /* Character Showcase Panel (?show=char) */
+    #char-showcase {
+      position: fixed; left: 16px; top: 16px; z-index: 25;
+      width: 260px; padding: 14px 16px;
+      background: rgba(10, 18, 24, 0.82);
+      border: 1px solid rgba(196, 172, 128, 0.45);
+      display: none; flex-direction: column; gap: 10px;
+      font-size: 13px; letter-spacing: 0.08em;
+    }
+    #char-showcase.visible { display: flex; }
+    #char-showcase h2 { font-size: 16px; color: #ecd7ad; font-weight: 400; border-bottom: 1px solid rgba(196,172,128,0.28); padding-bottom: 6px; }
+    .sc-group { display: flex; flex-wrap: wrap; gap: 6px; }
+    .sc-btn {
+      cursor: pointer; font-family: inherit; font-size: 12px;
+      padding: 4px 8px; color: #ddd6c4;
+      background: rgba(24, 38, 44, 0.85);
+      border: 1px solid rgba(160, 175, 170, 0.35);
+    }
+    .sc-btn.active { border-color: #e6c687; background: rgba(128, 46, 36, 0.72); color: #fff4df; }
+    #sc-probe {
+      font: 11px/1.45 ui-monospace, Menlo, monospace;
+      color: #9fe0c0; background: rgba(0,0,0,0.45); padding: 7px 8px;
+      white-space: pre;
+    }
+
+    /* Stage 4 Code-Drawn Ink-Wash Combat HUD */
+    #combat-hud { position: fixed; inset: 0; z-index: 14; pointer-events: none; opacity: 0; transition: opacity 0.5s; }
+    #combat-hud.visible { opacity: 1; }
+    .ch-top-left { position: absolute; left: 20px; top: 18px; width: 255px; }
+    .ch-name { font-size: 16px; color: #efe5cf; letter-spacing: 0.16em; margin-bottom: 6px; text-shadow: 0 1px 6px #000; }
+    .ch-sub { font-size: 12px; color: #cfa96e; margin-left: 6px; }
+    .ch-bar-wrap {
+      position: relative; height: 14px; background: rgba(10, 15, 19, 0.82);
+      border: 1px solid rgba(212, 186, 138, 0.52); margin-bottom: 5px;
+      clip-path: polygon(0 0, 100% 0, 97% 100%, 0 100%);
+    }
+    .ch-bar-wrap.small { height: 7px; width: 88%; }
+    .ch-bar-wrap.tiny { height: 7px; flex: 1; margin: 0 6px; }
+    .ch-bar-delay { position: absolute; inset: 1px; width: 100%; background: rgba(226, 190, 128, 0.72); transition: width 0.08s linear; }
+    .ch-bar-fill { position: absolute; inset: 1px; width: 100%; transition: width 0.08s ease-out; }
+    .ch-bar-fill.hp { background: linear-gradient(90deg, #7d1f1b, #c73c2e 82%, #f07b54); }
+    .ch-bar-fill.stam { background: linear-gradient(90deg, #3e7a64, #7bc79d); }
+    .ch-bar-fill.tox { background: linear-gradient(90deg, #5c277d, #b842d9); }
+    .ch-bar-txt { position: absolute; right: 8px; top: -1px; font-size: 11px; color: #f6efe0; text-shadow: 0 1px 3px #000; }
+    .ch-tox-row { display: flex; align-items: center; font-size: 12px; color: #cfa8e6; width: 88%; }
+    .ch-tox-val { font-size: 11px; min-width: 30px; text-align: right; }
+
+    .ch-top-center { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    #ch-zone-banner { font-size: 16px; letter-spacing: 0.28em; color: #e8d4ac; text-shadow: 0 2px 8px #000; }
+    #ch-alert {
+      padding: 6px 16px; font-size: 13px; letter-spacing: 0.1em; border-radius: 2px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.65); max-width: 520px; text-align: center;
+    }
+    #ch-alert.hidden { display: none; }
+    #ch-alert.danger { background: #a81c17; color: #120909; font-weight: bold; border: 1px solid #f0b8a8; }
+    #ch-alert.info { background: rgba(20, 34, 40, 0.9); color: #f3dfb0; border: 1px solid rgba(226, 190, 120, 0.7); }
+    #ch-riposte { padding: 5px 14px; background: rgba(180, 128, 28, 0.9); color: #120c05; font-size: 13px; border: 1px solid #fff0b8; }
+    #ch-riposte.hidden { display: none; }
+
+    .ch-top-right { position: absolute; right: 18px; top: 44px; width: 250px; text-align: right; text-shadow: 0 1px 6px #000; }
+    .ch-quest { font-size: 13px; color: #e8d7b2; letter-spacing: 0.08em; line-height: 1.5; }
+    .ch-inspect { margin-top: 8px; font-size: 12px; color: #b5d6c8; line-height: 1.45; background: rgba(9,16,22,0.68); padding: 6px 10px; border-right: 2px solid #76b89e; }
+    .ch-inspect:empty { display: none; }
+
+    .ch-bottom-bar { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; gap: 10px; pointer-events: auto; }
+    .ch-skill {
+      position: relative; width: 64px; height: 54px; overflow: hidden;
+      background: rgba(12, 20, 26, 0.84); border: 1px solid rgba(196, 174, 132, 0.5);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent;
+      transition: transform 0.08s, border-color 0.12s, background 0.12s;
+    }
+    .ch-skill.pressed { transform: scale(0.92); border-color: #f4d06f; background: rgba(128, 42, 32, 0.78); }
+    .ch-skill.ult.ready { border-color: #f4d06f; box-shadow: 0 0 14px rgba(244, 208, 111, 0.55); }
+    .sk-key { font-size: 13px; color: #f0d7a2; font-weight: bold; }
+    .sk-lbl { font-size: 11px; color: #d4ddd8; }
+    .sk-cd { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: rgba(5, 9, 12, 0.72); pointer-events: none; }
+
+    #ch-toast-stack { position: fixed; left: 20px; bottom: 86px; display: flex; flex-direction: column; gap: 6px; z-index: 16; }
+    .ch-toast { padding: 5px 12px; font-size: 12px; letter-spacing: 0.06em; background: rgba(12, 20, 26, 0.86); border-left: 3px solid #96b8ad; color: #e6e2d4; transition: opacity 0.6s; }
+    .ch-toast.good { border-left-color: #e8be5a; color: #f8eac6; }
+    .ch-toast.warn { border-left-color: #d9463e; color: #ffd4cf; }
+    .ch-toast.fade { opacity: 0; }
+
+    #ch-gameover {
+      position: fixed; inset: 0; z-index: 28; pointer-events: auto;
+      background: rgba(8, 10, 14, 0.78);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    }
+    #ch-gameover.hidden { display: none; }
+    .go-title { font-size: 34px; letter-spacing: 0.28em; color: #e2574c; }
+    .go-sub { font-size: 14px; letter-spacing: 0.14em; color: #ccc4b4; }
+    #btn-retry, #btn-vic-replay {
+      cursor: pointer; margin-top: 8px; padding: 10px 32px; font-family: inherit; font-size: 16px;
+      letter-spacing: 0.25em; background: rgba(24, 36, 42, 0.9); color: #f2e5cb; border: 1px solid #d4b47c;
+    }
+
+    /* Stage 5 Boss Bar, Cutscene Letterbox & Victory Panel */
+    #combat-hud.cutscene-hide { opacity: 0; pointer-events: none; }
+    #ch-boss-bar {
+      position: fixed; left: 50%; bottom: 82px; transform: translateX(-50%);
+      width: min(460px, 82vw); z-index: 15; pointer-events: none;
+    }
+    #ch-boss-bar.hidden { display: none; }
+    .boss-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; text-shadow: 0 1px 6px #000; }
+    .boss-name { font-size: 15px; letter-spacing: 0.16em; color: #f0e3c6; }
+    .boss-state { font-size: 11px; letter-spacing: 0.08em; color: #d994ff; }
+    .boss-state.broken { color: #f5ca64; }
+    .boss-track {
+      position: relative; height: 11px; background: rgba(10, 12, 18, 0.88);
+      border: 1px solid rgba(208, 178, 132, 0.65);
+      clip-path: polygon(1% 0, 100% 0, 99% 100%, 0 100%);
+    }
+    .boss-delay { position: absolute; inset: 1px; background: rgba(235, 198, 130, 0.65); }
+    .boss-fill { position: absolute; inset: 1px; background: linear-gradient(90deg, #561d7a, #a638d4 82%, #df8cff); transition: width 0.08s ease-out; }
+    .boss-fill.broken { background: linear-gradient(90deg, #9c5818, #e09a2b 82%, #ffe078); }
+
+    #cine-overlay { position: fixed; inset: 0; z-index: 22; pointer-events: none; opacity: 0; transition: opacity 0.45s ease; }
+    #cine-overlay.active { opacity: 1; }
+    .cine-bar { position: absolute; left: 0; right: 0; background: rgba(6, 10, 14, 0.92); }
+    .cine-bar.top { top: 0; height: 9vh; border-bottom: 1px solid rgba(196, 174, 132, 0.25); }
+    .cine-bar.bot {
+      bottom: 0; min-height: 14vh; padding: 14px 8vw 18px;
+      border-top: 1px solid rgba(196, 174, 132, 0.25);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    }
+    .cine-speaker { font-size: 13px; letter-spacing: 0.25em; color: #dfb974; }
+    .cine-text { font-size: clamp(15px, 1.8vw, 20px); letter-spacing: 0.16em; color: #f0e9da; text-align: center; }
+
+    #ch-victory {
+      position: fixed; inset: 0; z-index: 29; pointer-events: auto;
+      background: rgba(8, 14, 18, 0.88);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px;
+    }
+    #ch-victory.hidden { display: none; }
+    .vic-seal { font-size: 14px; letter-spacing: 0.3em; padding: 4px 12px; background: #9c241c; color: #f6ead8; border: 1px solid #e6b4a2; }
+    .vic-title { font-size: 30px; letter-spacing: 0.24em; color: #f2dfb5; }
+    .vic-quote { font-size: 14px; letter-spacing: 0.12em; color: #c7d4ce; text-align: center; max-width: 520px; }
+    .vic-stats { font-size: 13px; color: #e2c588; letter-spacing: 0.1em; }
+    .vic-lore {
+      max-width: 560px; max-height: 28vh; overflow-y: auto;
+      background: rgba(12, 22, 28, 0.85); border: 1px solid rgba(186, 166, 128, 0.38);
+      padding: 12px 16px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .vic-lore-item { font-size: 12px; line-height: 1.5; color: #d6e2dc; }
+    #btn-vic-codex {
+      cursor: pointer; margin-top: 8px; padding: 10px 24px; font-family: inherit; font-size: 15px;
+      letter-spacing: 0.16em; background: rgba(128, 36, 28, 0.86); color: #f6ead8; border: 1px solid #e6b4a2;
+    }
+
+    /* Stage 6 Top-Right Utility Buttons & Classical TCM Codex Modal */
+    .ch-tools { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 6px; pointer-events: auto; }
+    .ch-tool-btn {
+      cursor: pointer; font-family: inherit; font-size: 11px; letter-spacing: 0.08em;
+      padding: 4px 9px; color: #efe5cf;
+      background: rgba(14, 24, 30, 0.86); border: 1px solid rgba(196, 174, 132, 0.5);
+    }
+    .ch-tool-btn:hover { border-color: #f0d28b; background: rgba(30, 46, 54, 0.94); }
+
+    #codex-modal {
+      position: fixed; inset: 0; z-index: 35; pointer-events: auto;
+      background: rgba(6, 11, 15, 0.86);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    #codex-modal.hidden { display: none; }
+    .codex-box {
+      width: min(760px, 94vw); max-height: 86vh;
+      background: linear-gradient(180deg, rgba(16, 25, 30, 0.96), rgba(10, 16, 20, 0.98));
+      border: 1px solid rgba(212, 186, 138, 0.6);
+      box-shadow: 0 12px 42px rgba(0, 0, 0, 0.8);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .codex-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 18px; border-bottom: 1px solid rgba(212, 186, 138, 0.28);
+    }
+    .codex-title { font-size: 20px; letter-spacing: 0.18em; color: #f2dfb5; }
+    .codex-title span { font-size: 12px; color: #9eb5ae; margin-left: 10px; letter-spacing: 0.1em; }
+    .codex-close {
+      cursor: pointer; font-family: inherit; font-size: 12px; padding: 5px 12px;
+      background: rgba(24, 36, 42, 0.9); color: #e8dec8; border: 1px solid rgba(196, 174, 132, 0.45);
+    }
+    .codex-tabs { display: flex; gap: 6px; padding: 10px 18px; border-bottom: 1px solid rgba(212, 186, 138, 0.18); flex-wrap: wrap; }
+    .codex-tab {
+      cursor: pointer; font-family: inherit; font-size: 13px; letter-spacing: 0.12em;
+      padding: 6px 14px; color: #c7d2cc; background: rgba(20, 32, 38, 0.8);
+      border: 1px solid rgba(155, 170, 165, 0.3);
+    }
+    .codex-tab.active { background: rgba(146, 36, 28, 0.85); color: #fff4df; border-color: #e6b89c; }
+    .codex-body { padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .codex-card {
+      padding: 11px 14px; background: rgba(10, 17, 22, 0.72);
+      border-left: 3px solid #76b89e; border-top: 1px solid rgba(196,174,132,0.16);
+    }
+    .codex-card.danger { border-left-color: #c7342b; }
+    .cc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 5px; }
+    .cc-title { font-size: 15px; color: #f0e3c6; letter-spacing: 0.08em; }
+    .cc-tags { display: flex; gap: 6px; align-items: center; }
+    .cc-seen { font-size: 11px; padding: 2px 6px; background: rgba(156, 36, 28, 0.85); color: #fcead8; }
+    .cc-tier { font-size: 11px; padding: 2px 7px; background: rgba(45, 72, 66, 0.75); color: #bce6d4; }
+    .cc-tier.danger { background: #a81c17; color: #120909; font-weight: bold; }
+    .cc-sum { font-size: 13px; color: #e2dcc8; line-height: 1.5; margin-bottom: 4px; }
+    .cc-det { font-size: 12px; color: #adc4bc; line-height: 1.55; }
+
+    /* Mobile Floating Joystick & Right-Thumb Skill Cluster */
+    body.touch-mode { touch-action: none; overscroll-behavior: none; }
+    #touch-joy-base {
+      position: fixed; z-index: 18; width: 112px; height: 112px;
+      transform: translate(-50%, -50%); border-radius: 50%;
+      border: 1.5px solid rgba(212, 186, 138, 0.55);
+      background: radial-gradient(circle, rgba(16, 28, 34, 0.25) 0%, rgba(10, 18, 22, 0.58) 100%);
+      pointer-events: none; opacity: 0; transition: opacity 0.14s ease;
+    }
+    #touch-joy-base.active { opacity: 1; }
+    #touch-joy-knob {
+      position: absolute; left: 50%; top: 50%; width: 44px; height: 44px;
+      transform: translate(-50%, -50%); border-radius: 50%;
+      background: radial-gradient(circle, rgba(235, 196, 122, 0.92), rgba(168, 72, 42, 0.88));
+      border: 1.5px solid rgba(255, 240, 205, 0.78);
+      box-shadow: 0 0 14px rgba(230, 150, 70, 0.5);
+    }
+
+    body.touch-mode .ch-bottom-bar {
+      left: auto; right: 16px; bottom: 18px; transform: none;
+      display: grid; grid-template-columns: repeat(3, 62px); gap: 8px;
+    }
+    body.touch-mode .ch-skill {
+      width: 62px; height: 58px; border-radius: 10px;
+      background: rgba(12, 22, 28, 0.86);
+    }
+    body.touch-mode #sk-atk { border-color: rgba(235, 150, 80, 0.85); background: rgba(98, 30, 24, 0.84); }
+    body.touch-mode .sk-key { display: none; }
+    body.touch-mode .sk-lbl { font-size: 12px; text-align: center; line-height: 1.25; }
+    body.touch-mode #ch-boss-bar {
+      bottom: auto; top: 82px; width: min(360px, 86vw);
+    }
+    body.touch-mode #ch-toast-stack { left: 14px; bottom: 152px; max-width: 60vw; }
+
+    @media (max-width: 720px) {
+      .ch-top-left { left: 10px; top: 10px; width: 175px; }
+      .ch-top-right { right: 10px; top: 10px; width: 185px; }
+      .ch-name { font-size: 13px; }
+      .ch-sub { display: none; }
+      #ch-zone-banner { font-size: 13px; letter-spacing: 0.16em; margin-top: 24px; }
+      .ch-quest { font-size: 11px; }
+      .ch-inspect { font-size: 11px; padding: 4px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-wrap"></div>
+  <div id="loading-mask">踏入屍骨山……</div>
+
+  <div id="title-screen" class="hidden">
+    <div class="title-header">
+      <div class="title-row">
+        <h1 class="game-title">勇闖屍骨山</h1>
+        <div class="seal-stamp">尋藥之旅</div>
+      </div>
+      <p class="title-epigraph">神農遺赭鞭，百草辨君臣。未經炮製，良藥亦索命。</p>
+    </div>
+
+    <div class="title-actions">
+      <button id="btn-start" type="button">踏入山門</button>
+      <div class="title-subnote">毒劇中藥材安全性・水墨國風 3D 動作遊戲</div>
+    </div>
+  </div>
+
+  <div id="stage1-hud">
+    <div class="zone-name" id="hud-zone">屍骨山・山門殘碑</div>
+    <div>WASD 移動　｜　J / 左鍵 三連擊　｜　Space 閃避　｜　K / 右鍵 格擋　｜　Q 文火久煎訣</div>
+  </div>
+
+  <div id="char-showcase">
+    <h2 id="sc-title">角色展示台：沈青囊</h2>
+    <div class="sc-group" id="sc-chars"></div>
+    <div class="sc-group" id="sc-actions"></div>
+    <div id="sc-probe">IK Probe</div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+node_modules/
+game/standalone_preview.html
+.DS_Store
+Thumbs.db
